@@ -37,6 +37,8 @@ However this is a pretty major improvement over the equivalent heartbeat system 
 
 ### Monitor server
 
+This package should be compatible with Alma Linux 9 (i.e. Python 3.9), but you will need to bootstrap the Python virtual environment to install dependancies before it will run.  To do this run the bootstrap script after cloning the repo.  This will install all the requirements from the requirements.txt file.
+
 **Requirements:** Python 3.8+
 
 ```bash
@@ -44,9 +46,11 @@ pip install -r requirements.txt
 python heartbeat_monitor.py
 ```
 
-The dashboard is available at `http://localhost:8080`. The UDP listener is on port `9999`.
+The web based dashboard will be available by default at `http://localhost:8080` and the server will be listening on UDP on port `9999`.  These configurations can be changed via the config file.
 
 ### Python sender
+
+For sending packets, there are two separate sender implimentations.  There is a simple python script that can send packets either one at a time or in sequence.  Packet information can be specified via the commandline, or via a json file.
 
 ```bash
 # One-shot
@@ -60,6 +64,8 @@ python heartbeat_sender.py --file example_sender.json
 ```
 
 ### C++ sender
+
+There is also a C++ based sender application.  This is really just a commandline application wrapped around a simple library that calls a 'send_packet()' function.  See the 'heartbeat_sender_lib header.h' for details
 
 **Requirements:** CMake 3.14+, C++17 compiler
 
