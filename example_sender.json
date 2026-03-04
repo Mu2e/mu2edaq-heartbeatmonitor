@@ -1,0 +1,8 @@
+{
+  "name": "my-application",
+  "status": "running normally",
+  "host": "127.0.0.1",
+  "port": 9999,
+  "interval": 10,
+  "count": 0
+}

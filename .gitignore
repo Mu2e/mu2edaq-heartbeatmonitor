@@ -1,0 +1,17 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# C++ build
+cpp_sender/build/
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo

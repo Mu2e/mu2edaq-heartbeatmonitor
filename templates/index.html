@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HeartBeat Monitor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3e;
+      --text: #e2e8f0;
+      --text-muted: #64748b;
+      --green: #22c55e;
+      --green-bg: #052e16;
+      --green-border: #166534;
+      --red: #ef4444;
+      --red-bg: #2d0a0a;
+      --red-border: #7f1d1d;
+      --accent: #6366f1;
+      --header-height: 64px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      height: var(--header-height);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .pulse-icon {
+      width: 28px;
+      height: 28px;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 1.5rem;
+      font-size: .85rem;
+    }
+
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .3rem .75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .stat-pill .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .dot-red   { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+    .dot-gray  { background: var(--text-muted); }
+
+    .connection-badge {
+      font-size: .75rem;
+      padding: .2rem .6rem;
+      border-radius: 999px;
+      border: 1px solid;
+    }
+
+    .connection-badge.live   { color: var(--green); border-color: var(--green-border); background: var(--green-bg); }
+    .connection-badge.stale  { color: #f59e0b;      border-color: #78350f;             background: #1c0f00; }
+
+    /* ── Main layout ── */
+    main {
+      padding: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .summary-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .summary-card {
+      flex: 1;
+      min-width: 160px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+
+    .summary-card .label {
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-muted);
+      margin-bottom: .3rem;
+    }
+
+    .summary-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .value-green { color: var(--green); }
+    .value-red   { color: var(--red); }
+    .value-white { color: var(--text); }
+
+    /* ── Systems table ── */
+    .systems-section h2 {
+      font-size: .9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-muted);
+      margin-bottom: .75rem;
+    }
+
+    .systems-grid {
+      display: grid;
+      grid-template-columns: repeat(var(--grid-cols, 3), 1fr);
+      gap: .75rem;
+    }
+
+    @media (max-width: 900px) {
+      .systems-grid { grid-template-columns: repeat(min(var(--grid-cols, 3), 2), 1fr); }
+    }
+
+    @media (max-width: 560px) {
+      .systems-grid { grid-template-columns: 1fr; }
+    }
+
+    .system-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+      transition: border-color .2s, background .2s;
+    }
+
+    .system-card.ok {
+      border-top: 3px solid var(--green);
+    }
+
+    .system-card.error {
+      border-top: 3px solid var(--red);
+      background: var(--red-bg);
+    }
+
+    .system-card.error .system-name { color: var(--red); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      min-width: 0;
+    }
+
+    .card-body {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: .5rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.ok    { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse-green 2s infinite; }
+    .status-dot.error { background: var(--red);   box-shadow: 0 0 8px var(--red);   animation: pulse-red 1s infinite; }
+
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: .5; }
+    }
+
+    @keyframes pulse-red {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: .4; }
+    }
+
+    .system-info { min-width: 0; flex: 1; }
+
+    .system-name {
+      font-weight: 600;
+      font-size: 1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .system-description {
+      font-size: .8rem;
+      color: var(--text-muted);
+      margin-top: .15rem;
+    }
+
+    .system-meta {
+      display: flex;
+      gap: .6rem;
+      margin-top: .4rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-tag {
+      font-size: .75rem;
+      padding: .1rem .5rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .status-text {
+      font-size: .8rem;
+      padding: .15rem .5rem;
+      border-radius: 4px;
+    }
+
+    .status-text.ok    { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+    .status-text.error { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-border); }
+
+    .system-right {
+      text-align: right;
+      flex-shrink: 0;
+      min-width: 60px;
+    }
+
+    .age-display {
+      font-size: 1.1rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .age-display.ok    { color: var(--green); }
+    .age-display.error { color: var(--red); }
+
+    .age-label {
+      font-size: .7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .timeout-bar-wrapper {
+      margin-top: .3rem;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      min-width: 80px;
+    }
+
+    .timeout-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width .3s;
+    }
+
+    .timeout-bar.ok    { background: var(--green); }
+    .timeout-bar.error { background: var(--red); width: 100% !important; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state svg { margin-bottom: 1rem; opacity: .4; }
+    .empty-state h3  { font-size: 1.1rem; margin-bottom: .5rem; color: var(--text); }
+    .empty-state p   { font-size: .9rem; line-height: 1.6; }
+    .empty-state code {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: .1rem .4rem;
+      border-radius: 4px;
+      font-size: .85rem;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      font-size: .75rem;
+      color: var(--text-muted);
+      padding: 2rem;
+    }
+
+    #server-time { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg class="pulse-icon" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 14h5l3-9 4 18 3-9 3 6 2-6h4" stroke="#6366f1" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    HeartBeat Monitor
+  </div>
+
+  <div class="header-stats">
+    <div class="stat-pill">
+      <span class="dot dot-green"></span>
+      <span id="hdr-healthy">0</span> healthy
+    </div>
+    <div class="stat-pill">
+      <span class="dot dot-red"></span>
+      <span id="hdr-unhealthy">0</span> timed&nbsp;out
+    </div>
+    <span class="connection-badge live" id="conn-badge">● LIVE</span>
+  </div>
+</header>
+
+<main>
+  <div class="summary-bar">
+    <div class="summary-card">
+      <div class="label">Total Systems</div>
+      <div class="value value-white" id="sum-total">0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Healthy</div>
+      <div class="value value-green" id="sum-healthy">0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Timed Out</div>
+      <div class="value value-red" id="sum-unhealthy">0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Last Update</div>
+      <div class="value" style="font-size:1rem;margin-top:.25rem" id="sum-time">—</div>
+    </div>
+  </div>
+
+  <section class="systems-section">
+    <h2>Monitored Systems</h2>
+    <div class="systems-grid" id="systems-grid" style="--grid-cols: {{ grid_columns }}">
+      <div class="empty-state" id="empty-state">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <circle cx="24" cy="24" r="20" stroke="#64748b" stroke-width="2"/>
+          <path d="M6 24h8l5-14 6 28 5-14 4 8 3-8h5" stroke="#64748b" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h3>No heartbeats received yet</h3>
+        <p>
+          Waiting for heartbeat packets on UDP port <strong>{{ udp_port }}</strong>.<br><br>
+          Send a packet with:<br>
+          <code>python heartbeat_sender.py --name my-app --status "OK"</code>
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Server time: <span id="server-time">—</span> &nbsp;·&nbsp;
+  Listening on UDP :{{ udp_port }} &nbsp;·&nbsp;
+  HeartBeat Monitor
+</footer>
+
+<script>
+  const REFRESH_INTERVAL = {{ refresh_interval }} * 1000;
+
+  const grid        = document.getElementById('systems-grid');
+  const emptyState  = document.getElementById('empty-state');
+  const sumTotal    = document.getElementById('sum-total');
+  const sumHealthy  = document.getElementById('sum-healthy');
+  const sumUnhealthy= document.getElementById('sum-unhealthy');
+  const sumTime     = document.getElementById('sum-time');
+  const serverTime  = document.getElementById('server-time');
+  const hdrHealthy  = document.getElementById('hdr-healthy');
+  const hdrUnhealthy= document.getElementById('hdr-unhealthy');
+  const connBadge   = document.getElementById('conn-badge');
+
+  let lastUpdate = Date.now();
+
+  function fmtTime(isoStr) {
+    try {
+      return new Date(isoStr).toLocaleTimeString();
+    } catch { return isoStr; }
+  }
+
+  function barWidth(ageSeconds, timeout) {
+    const pct = Math.min((ageSeconds / timeout) * 100, 100);
+    return pct.toFixed(1);
+  }
+
+  function renderSystems(data) {
+    const systems = data.systems;
+
+    sumTotal.textContent     = data.total;
+    sumHealthy.textContent   = data.healthy;
+    sumUnhealthy.textContent = data.unhealthy;
+    sumTime.textContent      = fmtTime(data.server_time);
+    serverTime.textContent   = fmtTime(data.server_time);
+    hdrHealthy.textContent   = data.healthy;
+    hdrUnhealthy.textContent = data.unhealthy;
+
+    if (systems.length === 0) {
+      emptyState.style.display = '';
+      // Remove any existing cards
+      [...grid.querySelectorAll('.system-card')].forEach(el => el.remove());
+      return;
+    }
+
+    emptyState.style.display = 'none';
+
+    // Build a map of existing cards by name
+    const existing = {};
+    [...grid.querySelectorAll('.system-card')].forEach(el => {
+      existing[el.dataset.name] = el;
+    });
+
+    const seen = new Set();
+
+    systems.forEach(sys => {
+      seen.add(sys.name);
+      const state   = sys.timed_out ? 'error' : 'ok';
+      const bw      = sys.timed_out ? 100 : barWidth(sys.age_seconds, sys.timeout);
+      const sentFmt = sys.sent_timestamp ? fmtTime(sys.sent_timestamp) : '—';
+
+      const html = `
+        <div class="card-header">
+          <div class="status-dot ${state}"></div>
+          <div class="system-info">
+            <div class="system-name">${escHtml(sys.name)}</div>
+            ${sys.description ? `<div class="system-description">${escHtml(sys.description)}</div>` : ''}
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="system-meta">
+            <span class="status-text ${state}">${escHtml(sys.status || '—')}</span>
+            <span class="meta-tag">sent: ${sentFmt}</span>
+            <span class="meta-tag">from: ${escHtml(sys.source)}</span>
+            <span class="meta-tag">timeout: ${sys.timeout}s</span>
+          </div>
+          <div class="system-right">
+            <div class="age-display ${state}">${escHtml(sys.age_display)}</div>
+            <div class="age-label">ago</div>
+          </div>
+        </div>
+        <div class="timeout-bar-wrapper">
+          <div class="timeout-bar ${state}" style="width:${bw}%"></div>
+        </div>
+      `;
+
+      if (existing[sys.name]) {
+        const card = existing[sys.name];
+        card.className = `system-card ${state}`;
+        card.innerHTML = html;
+      } else {
+        const card = document.createElement('div');
+        card.className = `system-card ${state}`;
+        card.dataset.name = sys.name;
+        card.innerHTML = html;
+        grid.appendChild(card);
+      }
+    });
+
+    // Remove cards for systems no longer in snapshot
+    Object.keys(existing).forEach(name => {
+      if (!seen.has(name)) existing[name].remove();
+    });
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Server-Sent Events ──────────────────────────────────────────────────
+  function connectSSE() {
+    const es = new EventSource('/stream');
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        renderSystems(data);
+        lastUpdate = Date.now();
+        connBadge.textContent = '● LIVE';
+        connBadge.className = 'connection-badge live';
+      } catch (e) {
+        console.error('Parse error:', e);
+      }
+    };
+
+    es.onerror = () => {
+      connBadge.textContent = '⚠ RECONNECTING';
+      connBadge.className = 'connection-badge stale';
+      // EventSource auto-reconnects; this callback fires during reconnect
+    };
+  }
+
+  // ── Staleness indicator (if SSE is silently stuck) ──────────────────────
+  setInterval(() => {
+    const age = (Date.now() - lastUpdate) / 1000;
+    if (age > REFRESH_INTERVAL * 3) {
+      connBadge.textContent = '⚠ STALE';
+      connBadge.className = 'connection-badge stale';
+    }
+  }, 5000);
+
+  connectSSE();
+</script>
+</body>
+</html>
