@@ -1,7 +1,12 @@
-# HeartBeat Monitor
+# Mu2e DAQ HeartBeat Monitor
 
-A lightweight, real-time health monitoring system for distributed services. Remote systems send periodic UDP heartbeat packets; the monitor tracks their status and displays it on a live web dashboard.
+This is a lightweight, real-time health monitoring system intended for the Mu2e DAQ systems.  This operates much like other heartbeat systems that we have used for NOvA and other experiments.  Individual DAQ applications (or even light weight scripts) send periodic UDP heartbeat packets either to a specific host or via broadcast.  The monitoring application intercepts these packets and uses them to track which applications are alive.
 
+The initial ping from a DAQ component registers it with the monitor and records the initial time of the heartbeat.  The monitor then expects to receive a similar heartbeat at a later time.  It measures the amount of time that has been elapsed between the latest heartbeat and the current time.  If that elapsed time exceeds a threshold (and here each application can have specific time duration, or can use a default one) then the application is considered to be "dead" and an error can be thrown.
+
+The status of all the applications and their reported status are displays on a live webpage dashboard.  This dashboard updates/refreshes frequently so that you get a live view of the system.
+
+Schematically the system is pretty simple.  It looks like:
 ```
   Remote systems                    Monitor server
   ──────────────                    ────────────────────────────────────
@@ -11,6 +16,8 @@ A lightweight, real-time health monitoring system for distributed services. Remo
                                           │
   Web browser  ◄──── SSE / HTTP ──  Flask  /stream  /api/*  /
 ```
+
+However this is a pretty major improvement over the equivalent heartbeat system we have used before, and it should be more compatible with our systems in terms of integration (e.g. this supports UDP ipv4 and ipv6 packet sending and supports broadcast and multicast so DAQ systems should be "auto-discovered" if they just ping the local network or link-local network.  Pretty slick....and SO MUCH BETTER than using DDS messages.
 
 ---
 
