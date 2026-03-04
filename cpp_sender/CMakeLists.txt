@@ -25,11 +25,28 @@ if(NOT nlohmann_json_FOUND)
 endif()
 
 # ---------------------------------------------------------------------------
-# Target
+# Library
+# ---------------------------------------------------------------------------
+add_library(heartbeat_sender_lib STATIC heartbeat_sender_lib.cpp)
+
+target_include_directories(heartbeat_sender_lib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(heartbeat_sender_lib PUBLIC nlohmann_json::nlohmann_json)
+
+target_compile_options(heartbeat_sender_lib PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+)
+
+# ---------------------------------------------------------------------------
+# Executable
 # ---------------------------------------------------------------------------
 add_executable(heartbeat_sender heartbeat_sender.cpp)
 
-target_link_libraries(heartbeat_sender PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(heartbeat_sender PRIVATE heartbeat_sender_lib)
 
 target_compile_options(heartbeat_sender PRIVATE
     -Wall
@@ -41,3 +58,5 @@ target_compile_options(heartbeat_sender PRIVATE
 # Install
 # ---------------------------------------------------------------------------
 install(TARGETS heartbeat_sender RUNTIME DESTINATION bin)
+install(TARGETS heartbeat_sender_lib ARCHIVE DESTINATION lib)
+install(FILES heartbeat_sender_lib.h DESTINATION include)
