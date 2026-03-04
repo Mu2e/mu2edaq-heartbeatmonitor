@@ -55,6 +55,14 @@ target_compile_options(heartbeat_sender PRIVATE
 )
 
 # ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+include(CTest)
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
+
+# ---------------------------------------------------------------------------
 # Install
 # ---------------------------------------------------------------------------
 install(TARGETS heartbeat_sender RUNTIME DESTINATION bin)
