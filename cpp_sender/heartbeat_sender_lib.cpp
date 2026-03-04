@@ -25,6 +25,8 @@
 
 using json = nlohmann::json;
 
+namespace hbsender {
+
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
@@ -234,3 +236,5 @@ void load_json_file(const std::string& path, Config& cfg)
     if (j.contains("count"))     cfg.count    = j["count"].get<int>();
     if (j.contains("interface")) cfg.iface    = j["interface"].get<std::string>();
 }
+
+} // namespace hbsender

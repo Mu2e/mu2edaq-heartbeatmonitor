@@ -13,6 +13,8 @@
 #include "heartbeat_sender_lib.h"
 
 #include <getopt.h>
+
+using namespace hbsender;
 #include <signal.h>
 
 #include <chrono>

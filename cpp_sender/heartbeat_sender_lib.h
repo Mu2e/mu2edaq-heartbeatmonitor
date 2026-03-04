@@ -11,6 +11,8 @@
 
 #include <string>
 
+namespace hbsender {
+
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -58,3 +60,5 @@ void send_packet(const std::string& host, int port,
  * Throws std::runtime_error if the file cannot be opened or parsed.
  */
 void load_json_file(const std::string& path, Config& cfg);
+
+} // namespace hbsender
