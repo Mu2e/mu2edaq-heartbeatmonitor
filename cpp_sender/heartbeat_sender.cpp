@@ -352,7 +352,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    auto send_one = [&](int iteration) {
+    auto send_heartbeat = [&](int iteration) {
         std::string packet = build_packet(cfg.name, cfg.status);
         send_packet(cfg.host, cfg.port, packet, cfg.iface);
         if (cfg.verbose) {
@@ -366,7 +366,7 @@ int main(int argc, char* argv[])
 
     if (cfg.interval <= 0.0) {
         // One-shot
-        try { send_one(0); }
+        try { send_heartbeat(0); }
         catch (const std::exception& e) {
             std::cerr << "Error sending: " << e.what() << "\n";
             return 1;
@@ -382,7 +382,7 @@ int main(int argc, char* argv[])
 
         int iteration = 0;
         while (!g_stop && (cfg.count == 0 || iteration < cfg.count)) {
-            try { send_one(iteration); }
+            try { send_heartbeat(iteration); }
             catch (const std::exception& e) {
                 std::cerr << "Warning: " << e.what() << "\n";
             }
