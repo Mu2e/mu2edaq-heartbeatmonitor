@@ -19,6 +19,12 @@ monitor:
   refresh_interval: 2        # Seconds between UI auto-refresh
   grid_columns: 3            # Number of columns in the systems grid (1–6)
 
+daemon:
+  enabled: false                           # Set to true to run as a background daemon
+  pid_file: "/tmp/heartbeat_monitor.pid"   # PID file location
+  log_file: "/tmp/heartbeat_monitor.log"   # Log file (stdout/stderr redirected here)
+  working_dir: "/"                         # Working directory after daemonizing
+
 # Optional: per-system overrides. Systems not listed here use default_timeout.
 systems:
   - name: "critical-service"

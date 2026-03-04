@@ -12,10 +12,14 @@ Packet format (JSON over UDP):
 }
 """
 
+import atexit
 import json
 import logging
+import os
+import signal
 import socket
 import struct
+import sys
 import threading
 import time
 from datetime import datetime, timezone
@@ -57,14 +61,55 @@ DEFAULT_CONFIG = {
         "refresh_interval": 2,
         "grid_columns": 3,
     },
+    "daemon": {
+        "enabled": False,
+        "pid_file": "/tmp/heartbeat_monitor.pid",
+        "log_file": "/tmp/heartbeat_monitor.log",
+        "working_dir": "/",
+    },
     "systems": [],
 }
 
 
+# Directories searched (in order) when the config filename is not an absolute path
+# and the file is not found in the current working directory.
+CONFIG_SEARCH_DIRS = [
+    Path.cwd(),
+    Path.home() / ".config" / "heartbeat_monitor",
+    Path("/etc/heartbeat_monitor"),
+    Path(__file__).resolve().parent / "config",
+    Path(__file__).resolve().parent,
+]
+
+
+def find_config(name: str) -> Path | None:
+    """
+    Resolve *name* to an existing file.
+
+    If *name* is an absolute path or exists relative to cwd, return it directly.
+    Otherwise walk CONFIG_SEARCH_DIRS and return the first match.
+    Returns None if the file cannot be found anywhere.
+    """
+    p = Path(name)
+    if p.is_absolute() or p.exists():
+        return p if p.exists() else None
+    for d in CONFIG_SEARCH_DIRS:
+        candidate = d / p
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def load_config(path: str = "config.yaml") -> dict:
     config = DEFAULT_CONFIG.copy()
+    resolved = find_config(path)
+    if resolved is None:
+        searched = "\n  ".join(str(d / path) for d in CONFIG_SEARCH_DIRS)
+        log.warning("Config file %r not found in any search location:\n  %s\nUsing defaults.",
+                    path, searched)
+        return config
     try:
-        with open(path) as f:
+        with open(resolved) as f:
             user_cfg = yaml.safe_load(f) or {}
         # Deep merge top-level sections
         for section, values in user_cfg.items():
@@ -72,9 +117,9 @@ def load_config(path: str = "config.yaml") -> dict:
                 config[section].update(values)
             else:
                 config[section] = values
-        log.info("Loaded configuration from %s", path)
-    except FileNotFoundError:
-        log.warning("Config file %s not found, using defaults", path)
+        log.info("Loaded configuration from %s", resolved)
+    except OSError as exc:
+        log.warning("Could not read config file %s: %s — using defaults", resolved, exc)
     return config
 
 
@@ -306,6 +351,83 @@ def stream():
 
 
 # ---------------------------------------------------------------------------
+# Daemon support
+# ---------------------------------------------------------------------------
+
+def daemonize(pid_file: str, log_file: str, working_dir: str = "/"):
+    """
+    Detach the process from the terminal using the classic double-fork technique.
+    Writes the daemon PID to *pid_file* and redirects stdout/stderr to *log_file*.
+    Registers an atexit handler to remove the PID file on clean exit.
+    """
+    if not hasattr(os, "fork"):
+        raise RuntimeError("Daemon mode is only supported on POSIX systems.")
+
+    # --- First fork -----------------------------------------------------------
+    try:
+        pid = os.fork()
+        if pid > 0:
+            # Parent exits; child becomes a session leader.
+            sys.exit(0)
+    except OSError as exc:
+        raise RuntimeError(f"First fork failed: {exc}") from exc
+
+    # Decouple from the parent environment
+    os.chdir(working_dir)
+    os.setsid()
+    os.umask(0)
+
+    # --- Second fork ----------------------------------------------------------
+    try:
+        pid = os.fork()
+        if pid > 0:
+            # First child exits; grandchild can never re-acquire a tty.
+            sys.exit(0)
+    except OSError as exc:
+        raise RuntimeError(f"Second fork failed: {exc}") from exc
+
+    # Flush before redirecting
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    # Redirect stdin to /dev/null, stdout/stderr to the log file
+    with open(os.devnull, "rb") as devnull:
+        os.dup2(devnull.fileno(), sys.stdin.fileno())
+
+    log_path = Path(log_file).expanduser()
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "ab") as lf:
+        os.dup2(lf.fileno(), sys.stdout.fileno())
+        os.dup2(lf.fileno(), sys.stderr.fileno())
+
+    # Reconfigure the root logging handler to write to the log file now that
+    # stderr has been redirected.
+    root_logger = logging.getLogger()
+    for handler in list(root_logger.handlers):
+        root_logger.removeHandler(handler)
+    file_handler = logging.FileHandler(str(log_path))
+    file_handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    ))
+    root_logger.addHandler(file_handler)
+
+    # Write PID file
+    pid_path = Path(pid_file).expanduser()
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text(str(os.getpid()))
+    atexit.register(lambda: pid_path.unlink(missing_ok=True))
+
+    # Remove PID file on SIGTERM as well
+    def _sigterm(signum, frame):
+        pid_path.unlink(missing_ok=True)
+        sys.exit(0)
+    signal.signal(signal.SIGTERM, _sigterm)
+
+    log.info("Daemon started (PID %d). Logging to %s", os.getpid(), log_path)
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -315,13 +437,35 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="HeartBeat Monitor")
     parser.add_argument("-c", "--config", default="config.yaml",
-                        help="Path to YAML config file (default: config.yaml)")
+                        help="Config file name or path (default: config.yaml). "
+                             "If not an absolute path, searched in: cwd, "
+                             "~/.config/heartbeat_monitor/, /etc/heartbeat_monitor/, "
+                             "<install>/config/, <install>/")
     parser.add_argument("--debug", action="store_true",
                         help="Enable Flask debug mode")
+    parser.add_argument("-d", "--daemon", action="store_true", default=False,
+                        help="Run as a background daemon")
+    parser.add_argument("--pid-file", default=None,
+                        help="PID file path when running as a daemon "
+                             "(default: from config or /tmp/heartbeat_monitor.pid)")
+    parser.add_argument("--log-file", default=None,
+                        help="Log file path when running as a daemon "
+                             "(default: from config or /tmp/heartbeat_monitor.log)")
     args = parser.parse_args()
 
     _config = load_config(args.config)
     _registry = SystemRegistry(_config)
+
+    # Daemon mode: CLI flags override config file
+    daemon_cfg = _config.get("daemon", {})
+    run_as_daemon = args.daemon or daemon_cfg.get("enabled", False)
+
+    if run_as_daemon:
+        pid_file = args.pid_file or daemon_cfg.get("pid_file", "/tmp/heartbeat_monitor.pid")
+        log_file = args.log_file or daemon_cfg.get("log_file", "/tmp/heartbeat_monitor.log")
+        working_dir = daemon_cfg.get("working_dir", "/")
+        print(f"Starting daemon (PID file: {pid_file}, log: {log_file})")
+        daemonize(pid_file, log_file, working_dir)
 
     udp_cfg = _config["server"]
 
