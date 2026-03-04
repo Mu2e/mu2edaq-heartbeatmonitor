@@ -65,7 +65,7 @@ python heartbeat_sender.py --file example_sender.json
 
 ### C++ sender
 
-There is also a C++ based sender application.  This is really just a commandline application wrapped around a simple library that calls a 'send_packet()' function.  See the 'heartbeat_sender_lib header.h' for details
+There is also a C++ based sender application.  This is really just a commandline application wrapped around a simple library that calls a `send_packet()` function.  See the `heartbeat_sender_lib header.h` for details
 
 **Requirements:** CMake 3.14+, C++17 compiler
 
