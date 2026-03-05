@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ current_theme }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — HeartBeat Monitor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root[data-theme="dark"] {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3e;
+      --text: #e2e8f0;
+      --text-muted: #64748b;
+      --green: #22c55e;
+      --green-bg: #052e16;
+      --green-border: #166534;
+      --red: #ef4444;
+      --accent: #6366f1;
+      --header-height: 64px;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --border: #dee2e6;
+      --text: #212529;
+      --text-muted: #6c757d;
+      --green: #198754;
+      --green-bg: #d1e7dd;
+      --green-border: #a3cfbb;
+      --red: #dc3545;
+      --accent: #0d6efd;
+      --header-height: 64px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      height: var(--header-height);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .back-link {
+      font-size: .85rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .25rem .7rem;
+      transition: color .2s, border-color .2s;
+    }
+
+    .back-link:hover {
+      color: var(--text);
+      border-color: var(--text-muted);
+    }
+
+    /* ── Light mode header override (matches mu2edaq-dashboard navbar-dark bg-dark) ── */
+    :root[data-theme="light"] header {
+      background: #212529;
+      border-bottom-color: #212529;
+    }
+
+    :root[data-theme="light"] .logo {
+      color: #fff;
+    }
+
+    :root[data-theme="light"] .back-link {
+      color: rgba(255,255,255,.7);
+      border-color: rgba(255,255,255,.2);
+    }
+
+    :root[data-theme="light"] .back-link:hover {
+      color: #fff;
+      border-color: rgba(255,255,255,.5);
+    }
+
+    /* ── Main layout ── */
+    main {
+      padding: 2rem 1.5rem;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 1.75rem;
+    }
+
+    .settings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 1.4rem;
+      gap: 1rem;
+    }
+
+    .settings-row + .settings-row {
+      border-top: 1px solid var(--border);
+    }
+
+    .setting-label {
+      font-size: .95rem;
+      font-weight: 600;
+    }
+
+    .setting-description {
+      font-size: .8rem;
+      color: var(--text-muted);
+      margin-top: .2rem;
+    }
+
+    /* ── Theme toggle switch ── */
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      flex-shrink: 0;
+    }
+
+    .toggle-option {
+      font-size: .85rem;
+      color: var(--text-muted);
+      transition: color .15s;
+    }
+
+    .toggle-option.active {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* pill toggle */
+    .pill-switch {
+      position: relative;
+      width: 48px;
+      height: 26px;
+      cursor: pointer;
+    }
+
+    .pill-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .pill-track {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: var(--border);
+      transition: background .2s;
+    }
+
+    .pill-switch input:checked + .pill-track {
+      background: var(--accent);
+    }
+
+    .pill-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--surface);
+      box-shadow: 0 1px 3px rgba(0,0,0,.3);
+      transition: transform .2s;
+    }
+
+    .pill-switch input:checked ~ .pill-thumb {
+      transform: translateX(22px);
+    }
+
+    /* ── Status banner ── */
+    #status-banner {
+      display: none;
+      margin-top: 1rem;
+      padding: .6rem 1rem;
+      border-radius: 8px;
+      font-size: .85rem;
+    }
+
+    #status-banner.success {
+      background: var(--green-bg);
+      color: var(--green);
+      border: 1px solid var(--green-border);
+    }
+
+    #status-banner.error {
+      background: #2d0a0a;
+      color: var(--red);
+      border: 1px solid #7f1d1d;
+    }
+
+    :root[data-theme="light"] #status-banner.error {
+      background: #f8d7da;
+      border-color: #f1aeb5;
+    }
+
+    /* ── API reference ── */
+    .api-section {
+      margin-top: 2rem;
+    }
+
+    .api-section h2 {
+      font-size: .85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-muted);
+      margin-bottom: .75rem;
+    }
+
+    .api-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .api-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: .9rem 1.4rem;
+      font-size: .85rem;
+    }
+
+    .api-row + .api-row {
+      border-top: 1px solid var(--border);
+    }
+
+    .api-method {
+      font-weight: 700;
+      font-size: .75rem;
+      padding: .15rem .45rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+      margin-top: .1rem;
+    }
+
+    .method-get  { background: #1e3a5f; color: #60a5fa; }
+    .method-post { background: #14532d; color: #4ade80; }
+
+    :root[data-theme="light"] .method-get  { background: #dbeafe; color: #1d4ed8; }
+    :root[data-theme="light"] .method-post { background: #dcfce7; color: #15803d; }
+
+    .api-path {
+      font-family: monospace;
+      font-weight: 600;
+    }
+
+    .api-desc {
+      color: var(--text-muted);
+      margin-top: .15rem;
+    }
+
+    code {
+      font-family: monospace;
+      font-size: .9em;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: .1rem .35rem;
+      border-radius: 4px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      font-size: .75rem;
+      color: var(--text-muted);
+      padding: 2rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="/">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <path d="M2 14h5l3-9 4 18 3-9 3 6 2-6h4" stroke="#6366f1" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    HeartBeat Monitor
+  </a>
+  <a class="back-link" href="/">← Dashboard</a>
+</header>
+
+<main>
+  <h1>Settings</h1>
+
+  <div class="settings-card">
+    <div class="settings-row">
+      <div>
+        <div class="setting-label">Display theme</div>
+        <div class="setting-description">Applies to all sessions — stored on the server.</div>
+      </div>
+      <div class="toggle-group">
+        <span class="toggle-option" id="label-dark">Dark</span>
+        <label class="pill-switch" title="Toggle theme" aria-label="Toggle theme">
+          <input type="checkbox" id="theme-checkbox">
+          <span class="pill-track"></span>
+          <span class="pill-thumb"></span>
+        </label>
+        <span class="toggle-option" id="label-light">Light</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="status-banner"></div>
+
+  <div class="api-section">
+    <h2>REST API</h2>
+    <div class="api-card">
+      <div class="api-row">
+        <span class="api-method method-get">GET</span>
+        <div>
+          <div class="api-path">/api/theme</div>
+          <div class="api-desc">Returns the current theme: <code>{"theme": "dark"}</code></div>
+        </div>
+      </div>
+      <div class="api-row">
+        <span class="api-method method-post">POST</span>
+        <div>
+          <div class="api-path">/api/theme</div>
+          <div class="api-desc">
+            Sets the theme. Body: <code>{"theme": "light"}</code> or <code>{"theme": "dark"}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>HeartBeat Monitor &nbsp;·&nbsp; Settings</footer>
+
+<script>
+  const html     = document.documentElement;
+  const checkbox = document.getElementById('theme-checkbox');
+  const labelDark  = document.getElementById('label-dark');
+  const labelLight = document.getElementById('label-light');
+  const banner   = document.getElementById('status-banner');
+
+  function applyTheme(theme) {
+    html.setAttribute('data-theme', theme);
+    checkbox.checked = (theme === 'light');
+    labelDark.classList.toggle('active',  theme === 'dark');
+    labelLight.classList.toggle('active', theme === 'light');
+  }
+
+  function showBanner(msg, type) {
+    banner.textContent = msg;
+    banner.className = type;
+    banner.style.display = 'block';
+    clearTimeout(banner._timer);
+    banner._timer = setTimeout(() => { banner.style.display = 'none'; }, 3000);
+  }
+
+  // Set initial state from server-rendered value
+  applyTheme('{{ current_theme }}');
+
+  checkbox.addEventListener('change', async () => {
+    const theme = checkbox.checked ? 'light' : 'dark';
+    try {
+      const resp = await fetch('/api/theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme }),
+      });
+      if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+      const data = await resp.json();
+      applyTheme(data.theme);
+      showBanner(`Theme set to ${data.theme}.`, 'success');
+    } catch (err) {
+      showBanner(`Failed to update theme: ${err.message}`, 'error');
+      // Revert toggle
+      checkbox.checked = !checkbox.checked;
+    }
+  });
+</script>
+</body>
+</html>

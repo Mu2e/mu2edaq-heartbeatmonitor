@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="{{ default_theme }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +7,8 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
+    /* ── Dark theme (default) ── */
+    :root[data-theme="dark"] {
       --bg: #0f1117;
       --surface: #1a1d27;
       --border: #2a2d3e;
@@ -23,11 +24,29 @@
       --header-height: 64px;
     }
 
+    /* ── Light theme ── */
+    :root[data-theme="light"] {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --border: #dee2e6;
+      --text: #212529;
+      --text-muted: #6c757d;
+      --green: #198754;
+      --green-bg: #d1e7dd;
+      --green-border: #a3cfbb;
+      --red: #dc3545;
+      --red-bg: #f8d7da;
+      --red-border: #f1aeb5;
+      --accent: #0d6efd;
+      --header-height: 64px;
+    }
+
     body {
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      transition: background .2s, color .2s;
     }
 
     /* ── Header ── */
@@ -56,6 +75,12 @@
     .pulse-icon {
       width: 28px;
       height: 28px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
     }
 
     .header-stats {
@@ -91,8 +116,76 @@
       border: 1px solid;
     }
 
-    .connection-badge.live   { color: var(--green); border-color: var(--green-border); background: var(--green-bg); }
-    .connection-badge.stale  { color: #f59e0b;      border-color: #78350f;             background: #1c0f00; }
+    .connection-badge.live  { color: var(--green); border-color: var(--green-border); background: var(--green-bg); }
+    .connection-badge.stale { color: #f59e0b;      border-color: #78350f;             background: #1c0f00; }
+
+    :root[data-theme="light"] .connection-badge.stale {
+      color: #92400e;
+      border-color: #fcd34d;
+      background: #fffbeb;
+    }
+
+    /* ── Light mode header override (matches mu2edaq-dashboard navbar-dark bg-dark) ── */
+    :root[data-theme="light"] header {
+      background: #212529;
+      border-bottom-color: #212529;
+      color: #fff;
+    }
+
+    :root[data-theme="light"] .logo {
+      color: #fff;
+    }
+
+    :root[data-theme="light"] .stat-pill {
+      background: rgba(255,255,255,.08);
+      border-color: rgba(255,255,255,.15);
+      color: #fff;
+    }
+
+    :root[data-theme="light"] .dot-green { box-shadow: 0 0 6px var(--green); }
+    :root[data-theme="light"] .dot-red   { box-shadow: 0 0 6px var(--red); }
+
+    :root[data-theme="light"] .connection-badge.live {
+      color: #86efac;
+      border-color: #166534;
+      background: rgba(34,197,94,.15);
+    }
+
+    :root[data-theme="light"] .connection-badge.stale {
+      color: #fcd34d;
+      border-color: #78350f;
+      background: rgba(245,158,11,.15);
+    }
+
+    :root[data-theme="light"] .settings-link {
+      color: rgba(255,255,255,.7);
+      border-color: rgba(255,255,255,.2);
+    }
+
+    :root[data-theme="light"] .settings-link:hover {
+      color: #fff;
+      border-color: rgba(255,255,255,.5);
+    }
+
+    /* ── Settings link ── */
+    .settings-link {
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      font-size: .8rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .25rem .65rem;
+      white-space: nowrap;
+      transition: color .2s, border-color .2s;
+    }
+
+    .settings-link:hover {
+      color: var(--text);
+      border-color: var(--text-muted);
+    }
 
     /* ── Main layout ── */
     main {
@@ -336,16 +429,19 @@
     HeartBeat Monitor
   </div>
 
-  <div class="header-stats">
-    <div class="stat-pill">
-      <span class="dot dot-green"></span>
-      <span id="hdr-healthy">0</span> healthy
+  <div class="header-right">
+    <div class="header-stats">
+      <div class="stat-pill">
+        <span class="dot dot-green"></span>
+        <span id="hdr-healthy">0</span> healthy
+      </div>
+      <div class="stat-pill">
+        <span class="dot dot-red"></span>
+        <span id="hdr-unhealthy">0</span> timed&nbsp;out
+      </div>
+      <span class="connection-badge live" id="conn-badge">● LIVE</span>
     </div>
-    <div class="stat-pill">
-      <span class="dot dot-red"></span>
-      <span id="hdr-unhealthy">0</span> timed&nbsp;out
-    </div>
-    <span class="connection-badge live" id="conn-badge">● LIVE</span>
+    <a class="settings-link" href="/settings" title="Display settings">⚙ Settings</a>
   </div>
 </header>
 
@@ -398,6 +494,7 @@
 <script>
   const REFRESH_INTERVAL = {{ refresh_interval }} * 1000;
 
+  // ── DOM refs ─────────────────────────────────────────────────────────────
   const grid        = document.getElementById('systems-grid');
   const emptyState  = document.getElementById('empty-state');
   const sumTotal    = document.getElementById('sum-total');
