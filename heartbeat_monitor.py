@@ -484,6 +484,14 @@ def main():
     _config = load_config(args.config)
     if args.theme is not None:
         _config["monitor"]["theme"] = args.theme
+
+    # Control room launcher env overrides (between config file and CLI).
+    if os.environ.get("CRS_PORT_HTTP"):
+        _config["server"]["web_port"] = int(os.environ["CRS_PORT_HTTP"])
+    if os.environ.get("CRS_PORT_UDP"):
+        _config["server"]["udp_port"] = int(os.environ["CRS_PORT_UDP"])
+        _config["server"]["udp6_port"] = int(os.environ["CRS_PORT_UDP"])
+
     _registry = SystemRegistry(_config)
 
     # Daemon mode: CLI flags override config file
@@ -517,6 +525,16 @@ def main():
     web_host = udp_cfg["web_host"]
     web_port = _config["server"]["web_port"]
     log.info("Web server starting on http://%s:%d", web_host, web_port)
+
+    # Announce via mu2edaq-discovery (optional dependency). The UDP
+    # heartbeat ingest port travels in meta per the protocol spec.
+    try:
+        from mu2edaq_discovery import Responder
+        Responder(name="Heartbeat Monitor", app="heartbeatmonitor",
+                  port=web_port, scheme="http",
+                  meta={"udp_port": str(udp_cfg["udp_port"])}).start()
+    except ImportError:
+        log.info("mu2edaq-discovery not installed; discovery disabled")
 
     app.run(
         host=web_host,
