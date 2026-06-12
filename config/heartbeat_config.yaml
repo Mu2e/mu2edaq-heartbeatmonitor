@@ -1,8 +1,8 @@
 server:
-  udp_host: "0.0.0.0"       # IPv4 UDP listener bind address
+  udp_host: "0.0.0.0"        # IPv4 UDP listener bind address
   udp_port: 9999             # UDP port to listen on
-  web_host: "0.0.0.0"       # Web server bind address
-  web_port: 8080             # Web server port
+  web_host: "0.0.0.0"        # Web server bind address
+  web_port: 5003             # Web server port
   # multicast_groups:        # Optional: IPv4 multicast groups to join
   #   - "224.0.0.1"
 
@@ -18,6 +18,7 @@ monitor:
   cleanup_after: 86400       # Seconds to remove a system entry entirely after last heartbeat, default is 24 hours
   refresh_interval: 2        # Seconds between UI auto-refresh
   grid_columns: 3            # Number of columns in the systems grid (1–6)
+  theme: dark                # Default UI theme: "dark" or "light"
 
 daemon:
   enabled: false                           # Set to true to run as a background daemon

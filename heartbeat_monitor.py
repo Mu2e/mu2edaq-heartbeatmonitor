@@ -27,7 +27,7 @@ from typing import Dict, List, Tuple
 from pathlib import Path
 
 import yaml
-from flask import Flask, Response, jsonify, render_template
+from flask import Flask, Response, jsonify, render_template, request
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -60,6 +60,7 @@ DEFAULT_CONFIG = {
         "cleanup_after": 300,
         "refresh_interval": 2,
         "grid_columns": 3,
+        "theme": "dark",
     },
     "daemon": {
         "enabled": False,
@@ -305,6 +306,7 @@ def index():
         refresh_interval=_config["monitor"]["refresh_interval"],
         udp_port=_config["server"]["udp_port"],
         grid_columns=_config["monitor"].get("grid_columns", 3),
+        default_theme=_config["monitor"].get("theme", "dark"),
     )
 
 
@@ -326,6 +328,30 @@ def api_health():
     total, healthy = _registry.count()
     status = "ok" if total == healthy else "degraded"
     return jsonify({"status": status, "total": total, "healthy": healthy})
+
+
+@app.route("/api/theme", methods=["GET"])
+def api_theme_get():
+    return jsonify({"theme": _config["monitor"].get("theme", "dark")})
+
+
+@app.route("/api/theme", methods=["POST"])
+def api_theme_set():
+    body = request.get_json(silent=True) or {}
+    theme = body.get("theme", "").lower()
+    if theme not in ("dark", "light"):
+        return jsonify({"error": "theme must be 'dark' or 'light'"}), 400
+    _config["monitor"]["theme"] = theme
+    log.info("Theme changed to %s via API", theme)
+    return jsonify({"theme": theme})
+
+
+@app.route("/settings")
+def settings():
+    return render_template(
+        "settings.html",
+        current_theme=_config["monitor"].get("theme", "dark"),
+    )
 
 
 @app.route("/stream")
@@ -443,6 +469,8 @@ def main():
                              "<install>/config/, <install>/")
     parser.add_argument("--debug", action="store_true",
                         help="Enable Flask debug mode")
+    parser.add_argument("--theme", choices=["dark", "light"], default=None,
+                        help="Default UI theme (overrides config file)")
     parser.add_argument("-d", "--daemon", action="store_true", default=False,
                         help="Run as a background daemon")
     parser.add_argument("--pid-file", default=None,
@@ -454,6 +482,16 @@ def main():
     args = parser.parse_args()
 
     _config = load_config(args.config)
+    if args.theme is not None:
+        _config["monitor"]["theme"] = args.theme
+
+    # Control room launcher env overrides (between config file and CLI).
+    if os.environ.get("CRS_PORT_HTTP"):
+        _config["server"]["web_port"] = int(os.environ["CRS_PORT_HTTP"])
+    if os.environ.get("CRS_PORT_UDP"):
+        _config["server"]["udp_port"] = int(os.environ["CRS_PORT_UDP"])
+        _config["server"]["udp6_port"] = int(os.environ["CRS_PORT_UDP"])
+
     _registry = SystemRegistry(_config)
 
     # Daemon mode: CLI flags override config file
@@ -487,6 +525,16 @@ def main():
     web_host = udp_cfg["web_host"]
     web_port = _config["server"]["web_port"]
     log.info("Web server starting on http://%s:%d", web_host, web_port)
+
+    # Announce via mu2edaq-discovery (optional dependency). The UDP
+    # heartbeat ingest port travels in meta per the protocol spec.
+    try:
+        from mu2edaq_discovery import Responder
+        Responder(name="Heartbeat Monitor", app="heartbeatmonitor",
+                  port=web_port, scheme="http",
+                  meta={"udp_port": str(udp_cfg["udp_port"])}).start()
+    except ImportError:
+        log.info("mu2edaq-discovery not installed; discovery disabled")
 
     app.run(
         host=web_host,
