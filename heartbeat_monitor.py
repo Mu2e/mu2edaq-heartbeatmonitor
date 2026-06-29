@@ -499,13 +499,32 @@ def main():
     web_port = _config["server"]["web_port"]
     log.info("Web server starting on http://%s:%d", web_host, web_port)
 
-    app.run(
-        host=web_host,
-        port=web_port,
-        debug=args.debug,
-        use_reloader=False,   # reloader conflicts with our background thread
-        threaded=True,
-    )
+    # Mu2e DAQ service discovery: advertise the HTTP port (primary) and carry
+    # the UDP listener port in meta, so the app appears in mu2edaq-discover
+    # scans and the control room browser. The UDP listeners are already bound
+    # above; the responder is started just before the web server serves.
+    # Best-effort so a missing package never blocks startup.
+    responder = None
+    try:
+        from mu2edaq_discovery import Responder
+        responder = Responder(name="Heartbeat Monitor", app="heartbeatmonitor",
+                              port=web_port, scheme="http",
+                              meta={"udp_port": str(udp_cfg["udp_port"])})
+        responder.start()
+    except Exception as exc:
+        log.warning("Discovery responder not started: %s", exc)
+
+    try:
+        app.run(
+            host=web_host,
+            port=web_port,
+            debug=args.debug,
+            use_reloader=False,   # reloader conflicts with our background thread
+            threaded=True,
+        )
+    finally:
+        if responder is not None:
+            responder.stop()
 
 
 if __name__ == "__main__":
