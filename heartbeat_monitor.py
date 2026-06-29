@@ -454,6 +454,17 @@ def main():
     args = parser.parse_args()
 
     _config = load_config(args.config)
+
+    # Control-room port overrides: CRS_PORT_HTTP / CRS_PORT_UDP (exported by
+    # crs-app from apps.yaml) take precedence over the config file.
+    _crs_http = os.environ.get("CRS_PORT_HTTP")
+    if _crs_http:
+        _config["server"]["web_port"] = int(_crs_http)
+    _crs_udp = os.environ.get("CRS_PORT_UDP")
+    if _crs_udp:
+        _config["server"]["udp_port"] = int(_crs_udp)
+        _config["server"]["udp6_port"] = int(_crs_udp)
+
     _registry = SystemRegistry(_config)
 
     # Daemon mode: CLI flags override config file
