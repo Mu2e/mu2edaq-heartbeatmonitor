@@ -12,6 +12,8 @@ Packet format (JSON over UDP):
 }
 """
 
+from __future__ import annotations
+
 import atexit
 import json
 import logging
