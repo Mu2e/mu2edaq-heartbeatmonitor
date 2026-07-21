@@ -9,6 +9,10 @@
 python3 -m venv venv
 # Activate the virtual environment
 source venv/bin/activate
+# Prefer the sibling submodule checkout of mu2edaq-discovery when present.
+if [ -d ../mu2edaq-discovery ]; then
+    pip install -e ../mu2edaq-discovery
+fi
 # Install the required dependencies from the requirements.txt file
 pip install -r requirements.txt
 # Create necessary directories for the Heartbeat Monitor server
