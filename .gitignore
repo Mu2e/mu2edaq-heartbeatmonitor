@@ -15,3 +15,6 @@ cpp_sender/build/
 .DS_Store
 *.swp
 *.swo
+
+# Runtime state
+*.pid
