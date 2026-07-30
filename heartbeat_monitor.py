@@ -22,6 +22,7 @@ import signal
 import socket
 import struct
 import sys
+import tempfile
 import threading
 import time
 from datetime import datetime, timezone
@@ -66,8 +67,12 @@ DEFAULT_CONFIG = {
     },
     "daemon": {
         "enabled": False,
-        "pid_file": "/tmp/heartbeat_monitor.pid",
-        "log_file": "/tmp/heartbeat_monitor.log",
+        # Use the platform temp dir so the defaults are valid on every OS: on
+        # POSIX gettempdir() is normally /tmp (honouring $TMPDIR); on Windows it
+        # resolves to %TEMP% instead of a nonexistent /tmp. (Daemon mode itself
+        # is POSIX-only -- it needs os.fork -- but keep the paths portable.)
+        "pid_file": os.path.join(tempfile.gettempdir(), "heartbeat_monitor.pid"),
+        "log_file": os.path.join(tempfile.gettempdir(), "heartbeat_monitor.log"),
         "working_dir": "/",
     },
     "systems": [],
