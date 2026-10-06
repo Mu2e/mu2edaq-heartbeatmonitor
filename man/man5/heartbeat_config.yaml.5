@@ -1,0 +1,158 @@
+.TH HEARTBEAT_CONFIG.YAML 5 "2026-10-06" "mu2edaq-heartbeatmonitor t01.00.00" "Mu2e DAQ Manual"
+.SH NAME
+heartbeat_config.yaml \- heartbeat monitor configuration file
+.SH SYNOPSIS
+.I config/heartbeat_config.yaml
+.SH DESCRIPTION
+YAML mapping read by
+.BR heartbeat_monitor.py (1)
+via
+.BR \-c / \-\-config .
+Each top\-level section is merged one level deep over the built\-in defaults;
+keys not given keep their defaults.
+A section key that is present but empty (for example
+.B monitor:
+with every entry commented out) parses as null and aborts startup with a
+Python
+.BR TypeError ;
+delete the key instead.
+A YAML syntax error also aborts startup with a traceback.
+.B CRS_PORT_HTTP
+and
+.B CRS_PORT_UDP
+in the environment override the ports after the file is read.
+.SS server
+.TP
+.B udp_host
+IPv4 bind address.
+Default
+.BR 0.0.0.0 .
+.TP
+.B udp_port
+UDP heartbeat port, IPv4.
+Default 9999.
+.TP
+.B web_host
+HTTP bind address.
+Default
+.BR 0.0.0.0 .
+.TP
+.B web_port
+HTTP port.
+Built\-in default 8080; the shipped file says 5003; the control room overrides
+it to 8081 through
+.BR CRS_PORT_HTTP .
+Both 8080 (resource\-manager) and 5003 (fts) are used by other services.
+.TP
+.B multicast_groups
+List of IPv4 multicast group addresses to join.
+Default empty.
+.TP
+.B ipv6_enabled
+Start the IPv6 listener.
+Default true.
+.TP
+.B udp6_host
+IPv6 bind address.
+Default
+.BR :: .
+The socket is
+.BR IPV6_V6ONLY ,
+so it may share the port number with
+.BR udp_port .
+.TP
+.B udp6_port
+UDP heartbeat port, IPv6.
+Default 9999.
+.TP
+.B multicast6_groups
+List of mappings
+.B {group: \fIaddress\fP, interface: \fIname\fP}
+to join.
+.B interface
+is required for link\-local groups such as
+.BR ff02::1 .
+.SS monitor
+.TP
+.B default_timeout
+Seconds without a heartbeat before a sender is shown timed out.
+Built\-in default 30; shipped file 60.
+.TP
+.B cleanup_after
+Seconds without a heartbeat before a sender is removed from the display and
+from
+.B /api/health
+counts.
+Built\-in default 300; shipped file 86400.
+Applies to configured senders as well.
+.TP
+.B refresh_interval
+Seconds between Server\-Sent Events updates.
+Default 2.
+.TP
+.B grid_columns
+Dashboard columns, 1 to 6.
+Default 3.
+.TP
+.B theme
+.B dark
+or
+.BR light .
+Default
+.BR dark .
+.SS daemon
+.TP
+.B enabled
+Run as a daemon without
+.BR \-\-daemon .
+Default false.
+.TP
+.B pid_file
+Default
+.IR /tmp/heartbeat_monitor.pid .
+.TP
+.B log_file
+Default
+.IR /tmp/heartbeat_monitor.log .
+.TP
+.B working_dir
+Directory to change to after forking.
+Default
+.IR / .
+.SS systems
+Optional list of per\-sender overrides:
+.TP
+.B name
+Sender name, matched exactly against the heartbeat
+.B name
+field.
+.TP
+.B timeout
+Timeout in seconds for this sender.
+.TP
+.B description
+Text shown under the name on the dashboard.
+.PP
+Listing a sender here does not make the monitor expect it: a listed sender
+that never sends a heartbeat is not displayed.
+.SH EXAMPLES
+.RS 4
+.nf
+server:
+  udp_port: 9999
+  web_port: 8081
+  ipv6_enabled: true
+monitor:
+  default_timeout: 60
+  cleanup_after: 86400
+systems:
+  \- name: "runcontrol"
+    timeout: 10
+    description: "Run control heartbeat"
+.fi
+.RE
+.SH SEE ALSO
+.BR heartbeat_monitor.py (1),
+.BR mu2edaq\-heartbeatmonitor\-api (7)
+.SH AUTHOR
+Mu2e DAQ Group, Fermi National Accelerator Laboratory.

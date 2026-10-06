@@ -1,0 +1,136 @@
+.TH MU2EDAQ-HEARTBEATMONITOR-API 7 "2026-10-06" "mu2edaq-heartbeatmonitor t01.00.00" "Mu2e DAQ Manual"
+.SH NAME
+mu2edaq\-heartbeatmonitor\-api \- heartbeat wire format and HTTP API
+.SH DESCRIPTION
+.SS Heartbeat datagram
+A heartbeat is one UDP datagram, sent to port 9999 over IPv4 or IPv6
+(unicast, broadcast or multicast), containing one UTF\-8 JSON object:
+.PP
+.RS 4
+.nf
+{"name": "daq\-node\-01",
+ "timestamp": "2026\-10\-06T19:21:24.594+00:00",
+ "status": "OK"}
+.fi
+.RE
+.TP
+.B name
+Required string; whitespace\-trimmed; the sender's identity.
+A new name creates a new entry.
+.TP
+.B timestamp
+Optional, conventionally an ISO\-8601 UTC string from the sender.
+Displayed only.
+Liveness is computed from the time the monitor received the datagram, so the
+sender's clock does not matter.
+.TP
+.B status
+Optional, conventionally a short string.
+Displayed only; it does not affect the healthy or timed\-out state.
+.PP
+There is no version field, no acknowledgement and no authentication.
+Unknown keys are ignored.
+.PP
+Non\-JSON or non\-UTF\-8 datagrams, and objects without a non\-empty
+.BR name ,
+are logged and dropped.
+Valid JSON that is not an object, or an object whose
+.B name
+is not a string, currently terminates the receiving listener thread; senders
+must never emit such datagrams.
+.SS Sender encodings
+.BR heartbeat_sender.py (1)
+uses Python
+.B json.dumps
+defaults: spaces after
+.B ,
+and
+.BR : ,
+non\-ASCII escaped as
+.BR \euXXXX ,
+microsecond timestamps (the fraction is omitted when it is exactly zero).
+.BR heartbeat_sender (1)
+and
+.BR libheartbeat_sender_lib (3)
+emit compact JSON, raw UTF\-8, and millisecond timestamps.
+Both decode to the same object.
+.SS HTTP API
+Served on port 8081 in the control room; no authentication.
+.TP
+.B GET /api/systems
+JSON object with
+.B systems
+(list sorted by name; each entry has
+.BR name ,
+.BR age_seconds ,
+.BR age_display ,
+.BR sent_timestamp ,
+.BR status ,
+.BR source ,
+.BR description ,
+.BR timeout ,
+.BR timed_out ,
+.BR state ),
+.BR total ,
+.BR healthy ,
+.B unhealthy
+and
+.BR server_time .
+.B state
+is
+.B error
+if the age exceeds the timeout, else
+.BR ok .
+.TP
+.B GET /api/health
+.B {\(dqstatus\(dq: \(dqok\(dq|\(dqdegraded\(dq, \(dqtotal\(dq: N, \(dqhealthy\(dq: M}
+with HTTP 200 in both cases.
+It covers only senders currently known; a sender removed after
+.B cleanup_after
+seconds of silence, or never heard from, is not counted.
+.TP
+.B GET /stream
+Server\-Sent Events; one
+.B data:
+line carrying the
+.B /api/systems
+object every
+.B refresh_interval
+seconds, for as long as the client stays connected.
+.TP
+.B GET /api/theme
+.B {\(dqtheme\(dq: \(dqdark\(dq|\(dqlight\(dq}
+.TP
+.B POST /api/theme
+Body
+.BR {\(dqtheme\(dq: \(dqlight\(dq} ;
+changes the default theme for all viewers.
+400 on any other value.
+.TP
+.BR "GET /" ", " "GET /settings"
+Dashboard and settings HTML.
+.SS Service discovery
+With
+.B mu2edaq\-discovery
+installed the monitor answers DISCOVER requests as
+.BR app=heartbeatmonitor ,
+.BR scheme=http ,
+the HTTP port, and
+.B meta
+.BR {\(dqudp_port\(dq: \(dq9999\(dq} .
+.SH EXAMPLES
+.RS 4
+.nf
+echo \-n '{"name":"probe","status":"OK"}' | nc \-u \-w1 127.0.0.1 9999
+curl \-s localhost:8081/api/health
+curl \-sN localhost:8081/stream | head \-c 400
+.fi
+.RE
+.SH SEE ALSO
+.BR heartbeat_monitor.py (1),
+.BR heartbeat_sender.py (1),
+.BR heartbeat_sender (1),
+.BR libheartbeat_sender_lib (3),
+.BR heartbeat_config.yaml (5)
+.SH AUTHOR
+Mu2e DAQ Group, Fermi National Accelerator Laboratory.

@@ -1,0 +1,130 @@
+.TH HEARTBEAT_SENDER.PY 1 "2026-10-06" "mu2edaq-heartbeatmonitor t01.00.00" "Mu2e DAQ Manual"
+.SH NAME
+heartbeat_sender.py \- send UDP heartbeats to a heartbeat monitor
+.SH SYNOPSIS
+.B heartbeat_sender.py
+.RB [ \-f | \-\-file
+.IR json_file ]
+.RB [ \-n | \-\-name
+.IR name ]
+.RB [ \-s | \-\-status
+.IR status ]
+.RB [ \-\-host
+.IR host ]
+.RB [ \-p | \-\-port
+.IR port ]
+.RB [ \-i | \-\-interval
+.IR seconds ]
+.RB [ \-\-count
+.IR n ]
+.RB [ \-I | \-\-interface
+.IR iface ]
+.RB [ \-v | \-\-verbose ]
+.SH DESCRIPTION
+.B heartbeat_sender.py
+builds a heartbeat datagram
+.RS 4
+.nf
+{"name": "\fIname\fR", "timestamp": "\fIUTC ISO\-8601\fR", "status": "\fIstatus\fR"}
+.fi
+.RE
+and sends it to
+.IR host : port ,
+once or repeatedly.
+The destination may be an IPv4 unicast, broadcast or multicast address, an
+IPv6 unicast or multicast address (optionally with a
+.BI % iface
+scope suffix), or a host name resolved with
+.BR getaddrinfo (3).
+IPv6 link\-local unicast and link\-local multicast destinations require an
+interface.
+.PP
+The wire format and its differences from the C++ sender are documented in
+.BR mu2edaq\-heartbeatmonitor\-api (7).
+.SH OPTIONS
+.TP
+.BR \-f ", " \-\-file " " \fIjson_file\fR
+Read defaults from a JSON object with any of the keys
+.BR name ,
+.BR status ,
+.BR host ,
+.BR port ,
+.BR interval ,
+.BR count ,
+.BR interface .
+Command\-line options override file values, except that
+.BR \-\-status ,
+.B \-\-host
+and
+.B \-\-port
+given with their default values do not override a different file value.
+.TP
+.BR \-n ", " \-\-name " " \fIname\fR
+Sender name; the monitor's key for this sender.
+Required, on the command line or in the file.
+.TP
+.BR \-s ", " \-\-status " " \fIstatus\fR
+Free\-text status string.
+Default
+.BR OK .
+The monitor displays it but does not interpret it.
+.TP
+.BI \-\-host " host"
+Destination.
+Default
+.BR 127.0.0.1 .
+.TP
+.BR \-p ", " \-\-port " " \fIport\fR
+Destination UDP port.
+Default 9999.
+.TP
+.BR \-i ", " \-\-interval " " \fIseconds\fR
+Send every
+.I seconds
+(floating point).
+0, the default, sends once.
+.TP
+.BI \-\-count " n"
+Stop after
+.I n
+heartbeats in interval mode.
+0, the default, means unlimited.
+.TP
+.BR \-I ", " \-\-interface " " \fIiface\fR
+Outgoing interface for IPv6 link\-local or multicast destinations.
+.TP
+.BR \-v ", " \-\-verbose
+Print each heartbeat as it is sent.
+.TP
+.BR \-h ", " \-\-help
+Print usage and exit.
+.SH EXIT STATUS
+.TP
+.B 0
+Heartbeat(s) sent, or interval mode stopped with Ctrl\-C.
+.TP
+.B 1
+No name given, or the JSON file is missing or invalid.
+.PP
+A socket error, a host name that does not resolve, or an IPv6 link\-local
+destination without an interface ends the program with a Python traceback and
+status 1.
+In interval mode this includes a transient error on any later send: the loop
+stops at the first failure, whereas
+.BR heartbeat_sender (1)
+prints a warning and keeps sending.
+.SH EXAMPLES
+.RS 4
+.nf
+python3 heartbeat_sender.py \-\-name daq\-node\-01 \-\-host monitor\-host \-\-port 9999
+python3 heartbeat_sender.py \-\-name runcontrol \-\-status running \-\-interval 10
+python3 heartbeat_sender.py \-\-file example_sender.json
+python3 heartbeat_sender.py \-\-name n1 \-\-host ff02::1%eth0
+.fi
+.RE
+.SH SEE ALSO
+.BR heartbeat_sender (1),
+.BR heartbeat_monitor.py (1),
+.BR mu2edaq\-heartbeatmonitor\-api (7)
+.SH AUTHOR
+Mu2e DAQ Group, Fermi National Accelerator Laboratory.

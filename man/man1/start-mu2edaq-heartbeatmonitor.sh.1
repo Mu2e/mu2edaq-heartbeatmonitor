@@ -1,0 +1,85 @@
+.TH START-MU2EDAQ-HEARTBEATMONITOR.SH 1 "2026-10-06" "mu2edaq-heartbeatmonitor t01.00.00" "Mu2e DAQ Manual"
+.SH NAME
+start\-mu2edaq\-heartbeatmonitor.sh \- start the heartbeat monitor daemon
+.SH SYNOPSIS
+.B start\-mu2edaq\-heartbeatmonitor.sh
+.RI [ config_file ]
+.SH DESCRIPTION
+Control\-room start script, run as
+.BR "crs\-app start heartbeatmonitor" .
+It changes to its own directory, exports
+.B CRS_PORT_HTTP
+(default 8081) and
+.B CRS_PORT_UDP
+(default 9999) if they are not already set, activates
+.IR ./venv ,
+and replaces itself with
+.PP
+.RS 4
+.nf
+python heartbeat_monitor.py \-\-config \fIconfig_file\fR \-\-daemon \e
+    \-\-pid\-file <checkout>/heartbeat_monitor.pid
+.fi
+.RE
+.PP
+HTTP port 8081 is used because
+.B mu2edaq\-resource\-manager
+owns 8080.
+.PP
+The script does not check whether the monitor is already running.
+A second start overwrites the PID file, fails on the HTTP port, and then
+removes the PID file, leaving the first daemon running without one.
+Use
+.B "pgrep \-af heartbeat_monitor.py"
+before starting by hand.
+.SH OPTIONS
+.TP
+.I config_file
+Configuration passed to
+.BR \-\-config .
+Default
+.IR ./config/heartbeat_config.yaml .
+.SH FILES
+.TP
+.I ./venv
+Required; created by
+.BR bootstrap_heartbeat_monitor.sh (1).
+.TP
+.I ./heartbeat_monitor.pid
+PID file of the daemon.
+.TP
+.I /tmp/heartbeat_monitor.log
+Daemon log (from
+.B daemon.log_file
+in the configuration).
+.SH ENVIRONMENT
+.TP
+.B CRS_PORT_HTTP
+HTTP port; default 8081.
+.TP
+.B CRS_PORT_UDP
+UDP heartbeat port for IPv4 and IPv6; default 9999.
+.SH EXIT STATUS
+.TP
+.B 1
+.I ./venv
+does not exist.
+.PP
+Otherwise the exit status is that of the daemonizing parent, which is 0 once
+it has forked.
+A daemon that fails after forking, for example on a busy port, is not
+reported; check the log.
+.SH EXAMPLES
+.RS 4
+.nf
+\&./start\-mu2edaq\-heartbeatmonitor.sh
+CRS_PORT_HTTP=8091 ./start\-mu2edaq\-heartbeatmonitor.sh config/test.yaml
+curl \-s localhost:8081/api/health
+.fi
+.RE
+.SH SEE ALSO
+.BR stop\-mu2edaq\-heartbeatmonitor.sh (1),
+.BR heartbeat_monitor.py (1),
+.BR bootstrap_heartbeat_monitor.sh (1)
+.SH AUTHOR
+Mu2e DAQ Group, Fermi National Accelerator Laboratory.

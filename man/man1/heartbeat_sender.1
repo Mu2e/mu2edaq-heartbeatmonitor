@@ -1,0 +1,132 @@
+.TH HEARTBEAT_SENDER 1 "2026-10-06" "mu2edaq-heartbeatmonitor t01.00.00" "Mu2e DAQ Manual"
+.SH NAME
+heartbeat_sender \- send UDP heartbeats (C++ implementation)
+.SH SYNOPSIS
+.B heartbeat_sender
+.RB [ \-f | \-\-file
+.IR json_file ]
+.RB [ \-n | \-\-name
+.IR name ]
+.RB [ \-s | \-\-status
+.IR status ]
+.RB [ \-\-host
+.IR host ]
+.RB [ \-p | \-\-port
+.IR port ]
+.RB [ \-i | \-\-interval
+.IR seconds ]
+.RB [ \-\-count
+.IR n ]
+.RB [ \-I | \-\-interface
+.IR iface ]
+.RB [ \-v | \-\-verbose ]
+.SH DESCRIPTION
+.B heartbeat_sender
+is the C++17 equivalent of
+.BR heartbeat_sender.py (1),
+built from
+.I cpp_sender/
+with CMake on top of
+.BR libheartbeat_sender_lib (3).
+It accepts the same options and produces heartbeats that decode to the same
+JSON object, with compact separators, raw UTF\-8, and a millisecond UTC
+timestamp
+.RI ( YYYY\-MM\-DDTHH:MM:SS.mmm+00:00 ).
+.PP
+Unlike the Python sender, options given explicitly on the command line always
+override the
+.B \-\-file
+values, even when they equal the defaults.
+.PP
+POSIX only; the program does not build on Windows.
+.SH OPTIONS
+.TP
+.BR \-f ", " \-\-file " " \fIjson_file\fR
+Read
+.BR name ,
+.BR status ,
+.BR host ,
+.BR port ,
+.BR interval ,
+.B count
+and
+.B interface
+from a JSON object.
+.TP
+.BR \-n ", " \-\-name " " \fIname\fR
+Sender name.
+Required.
+.TP
+.BR \-s ", " \-\-status " " \fIstatus\fR
+Status string.
+Default
+.BR OK .
+.TP
+.BI \-\-host " host"
+Destination address or host name.
+Default
+.BR 127.0.0.1 .
+.TP
+.BR \-p ", " \-\-port " " \fIport\fR
+Destination UDP port.
+Default 9999.
+.TP
+.BR \-i ", " \-\-interval " " \fIseconds\fR
+Send every
+.I seconds
+(floating point); 0 sends once.
+.TP
+.BI \-\-count " n"
+Stop after
+.I n
+heartbeats in interval mode; 0 means unlimited.
+.TP
+.BR \-I ", " \-\-interface " " \fIiface\fR
+Outgoing interface for IPv6 link\-local or multicast destinations.
+An unknown interface name is an error.
+.TP
+.BR \-v ", " \-\-verbose
+Print each heartbeat as it is sent.
+.TP
+.BR \-h ", " \-\-help
+Print usage and exit.
+.SH EXIT STATUS
+.TP
+.B 0
+Sent, or interval mode stopped with SIGINT.
+In interval mode individual send failures are printed as warnings and do not
+change the exit status.
+.TP
+.B 1
+Missing name, unreadable or invalid JSON file, unknown option, or a one\-shot
+send failure.
+.TP
+.B 134
+A non\-numeric
+.BR \-\-port ,
+.B \-\-interval
+or
+.B \-\-count
+value: the parse exception is not caught and the process aborts.
+.PP
+A send to a host name ignores the
+.BR sendto (2)
+result, so a failure there is not reported.
+.SH EXAMPLES
+Build and run:
+.PP
+.RS 4
+.nf
+cmake \-S cpp_sender \-B cpp_sender/build
+cmake \-\-build cpp_sender/build \-j
+cpp_sender/build/heartbeat_sender \-\-name daq\-node\-01 \-\-host monitor\-host
+cpp_sender/build/heartbeat_sender \-\-name runcontrol \-\-interval 10 \-v
+.fi
+.RE
+.SH SEE ALSO
+.BR heartbeat_sender.py (1),
+.BR libheartbeat_sender_lib (3),
+.BR heartbeat_monitor.py (1),
+.BR mu2edaq\-heartbeatmonitor\-api (7)
+.SH AUTHOR
+Mu2e DAQ Group, Fermi National Accelerator Laboratory.

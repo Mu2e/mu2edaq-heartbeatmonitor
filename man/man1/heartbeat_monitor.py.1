@@ -1,0 +1,170 @@
+.TH HEARTBEAT_MONITOR.PY 1 "2026-10-06" "mu2edaq-heartbeatmonitor t01.00.00" "Mu2e DAQ Manual"
+.SH NAME
+heartbeat_monitor.py \- UDP heartbeat liveness monitor with web dashboard
+.SH SYNOPSIS
+.B heartbeat_monitor.py
+.RB [ \-c | \-\-config
+.IR file ]
+.RB [ \-\-debug ]
+.RB [ \-\-theme
+.IR dark | light ]
+.RB [ \-d | \-\-daemon ]
+.RB [ \-\-pid\-file
+.IR path ]
+.RB [ \-\-log\-file
+.IR path ]
+.SH DESCRIPTION
+.B heartbeat_monitor.py
+listens for JSON heartbeat datagrams on a UDP port (IPv4 and IPv6), keeps
+the most recent heartbeat for each sender
+.IR name ,
+and serves a dashboard, a JSON API and a Server\-Sent Events stream over HTTP.
+A sender is shown healthy while the time since its last heartbeat, measured
+on the monitor's clock, is at most its timeout; otherwise it is shown timed out.
+A sender silent for longer than
+.B monitor.cleanup_after
+seconds is removed from the display entirely.
+.PP
+Each address family has its own listener thread.
+The IPv6 socket is bound with
+.B IPV6_V6ONLY
+so it can share the port number with the IPv4 socket.
+The web server is Flask's built\-in threaded server.
+.PP
+In the control room the program is started by
+.BR start\-mu2edaq\-heartbeatmonitor.sh (1),
+which runs it in daemon mode on HTTP port 8081 and UDP port 9999.
+.PP
+The datagram format and HTTP routes are specified in
+.BR mu2edaq\-heartbeatmonitor\-api (7).
+.SH OPTIONS
+.TP
+.BR \-c ", " \-\-config " " \fIfile\fR
+YAML configuration file.
+Default
+.IR config.yaml .
+A relative name that does not exist in the current directory is searched
+for in
+.IR ~/.config/heartbeat_monitor/ ,
+.IR /etc/heartbeat_monitor/ ,
+the
+.I config/
+directory next to the script, and the script's own directory.
+If it is found nowhere, a warning is logged and built\-in defaults are used.
+No file named
+.I config.yaml
+ships with the package; the shipped file is
+.IR config/heartbeat_config.yaml ,
+so pass it explicitly.
+.TP
+.B \-\-debug
+Run Flask in debug mode.
+This exposes the Werkzeug interactive debugger on
+.BR server.web_host ,
+which is 0.0.0.0 by default.
+Do not use on a networked DAQ host.
+.TP
+.BR \-\-theme " " \fIdark\fR | \fIlight\fR
+Default dashboard theme; overrides
+.BR monitor.theme .
+.TP
+.BR \-d ", " \-\-daemon
+Detach with a double fork, change to
+.BR daemon.working_dir ,
+redirect stdout and stderr to the log file, and write the PID file.
+Also enabled by
+.B daemon.enabled: true
+in the configuration.
+.TP
+.BI \-\-pid\-file " path"
+PID file in daemon mode.
+Default:
+.B daemon.pid_file
+or
+.IR /tmp/heartbeat_monitor.pid .
+.TP
+.BI \-\-log\-file " path"
+Log file in daemon mode.
+Default:
+.B daemon.log_file
+or
+.IR /tmp/heartbeat_monitor.log .
+.TP
+.BR \-h ", " \-\-help
+Print usage and exit.
+.SH FILES
+.TP
+.I config/heartbeat_config.yaml
+Shipped configuration; see
+.BR heartbeat_config.yaml (5).
+.TP
+.I /tmp/heartbeat_monitor.pid
+Default PID file in daemon mode.
+The start script uses
+.I heartbeat_monitor.pid
+in the checkout instead.
+.TP
+.I /tmp/heartbeat_monitor.log
+Default log file in daemon mode.
+.PP
+In daemon mode the process sets its umask to 0, so the PID and log files are
+created with mode 0666.
+.SH ENVIRONMENT
+.TP
+.B CRS_PORT_HTTP
+Overrides
+.BR server.web_port .
+Must be an integer; any other non\-empty value aborts startup with a Python
+.BR ValueError .
+.TP
+.B CRS_PORT_UDP
+Overrides both
+.B server.udp_port
+and
+.BR server.udp6_port .
+Same parsing as above.
+.PP
+Precedence for ports:
+.B CRS_PORT_*
+environment, then the configuration file, then the built\-in defaults
+(HTTP 8080, UDP 9999).
+.SH EXIT STATUS
+.TP
+.B 0
+Normal exit, or the parent process after a successful fork in daemon mode.
+.TP
+.B 1
+Uncaught exception during startup, for example the HTTP port already in use
+or an invalid
+.B CRS_PORT_*
+value.
+.PP
+A failure to bind a UDP port does not cause a non\-zero exit: it ends only
+that listener thread, and the HTTP server keeps running.
+.SH EXAMPLES
+Foreground, with the shipped configuration and the control\-room ports:
+.PP
+.RS 4
+.nf
+CRS_PORT_HTTP=8081 venv/bin/python heartbeat_monitor.py \e
+    \-c config/heartbeat_config.yaml
+.fi
+.RE
+.PP
+Query the state:
+.PP
+.RS 4
+.nf
+curl \-s localhost:8081/api/health
+curl \-s localhost:8081/api/systems | python3 \-m json.tool
+.fi
+.RE
+.SH SEE ALSO
+.BR heartbeat_sender.py (1),
+.BR heartbeat_sender (1),
+.BR start\-mu2edaq\-heartbeatmonitor.sh (1),
+.BR stop\-mu2edaq\-heartbeatmonitor.sh (1),
+.BR heartbeat_config.yaml (5),
+.BR mu2edaq\-heartbeatmonitor\-api (7)
+.SH AUTHOR
+Mu2e DAQ Group, Fermi National Accelerator Laboratory.

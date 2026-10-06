@@ -1,0 +1,62 @@
+.TH BOOTSTRAP_HEARTBEAT_MONITOR.SH 1 "2026-10-06" "mu2edaq-heartbeatmonitor t01.00.00" "Mu2e DAQ Manual"
+.SH NAME
+bootstrap_heartbeat_monitor.sh \- create the monitor virtual environment
+.SH SYNOPSIS
+.B ./bootstrap_heartbeat_monitor.sh
+.SH DESCRIPTION
+Creates a Python virtual environment
+.I venv
+in the
+.B current working directory
+with
+.BR "python3 \-m venv" ,
+installs
+.I ../mu2edaq\-discovery
+in editable mode if that directory exists, installs
+.IR requirements.txt
+(Flask and PyYAML), and creates the directories
+.IR data ,
+.I logs
+and
+.IR config .
+.PP
+All paths are relative to the working directory, not to the script, so it
+must be run from the package directory.
+It has no
+.BR "set \-e" :
+a failed step does not stop it, and it always prints a success message.
+Inspect the output.
+These limitations are tracked in GitHub issue #8.
+.PP
+The name differs from the
+.B bootstrap.sh
+used by most sibling packages.
+.SH OPTIONS
+None.
+.SH FILES
+.TP
+.I ./venv
+Virtual environment used by
+.BR start\-mu2edaq\-heartbeatmonitor.sh (1).
+.TP
+.I ./requirements.txt
+Python dependencies.
+.TP
+.I ../mu2edaq\-discovery
+Optional sibling checkout providing service discovery.
+.SH EXIT STATUS
+The status of the last command, normally 0, whether or not earlier steps
+succeeded.
+.SH EXAMPLES
+.RS 4
+.nf
+cd ~/mu2edaq\-main/mu2edaq\-heartbeatmonitor
+\&./bootstrap_heartbeat_monitor.sh
+venv/bin/python \-c 'import flask, yaml; print("ok")'
+.fi
+.RE
+.SH SEE ALSO
+.BR start\-mu2edaq\-heartbeatmonitor.sh (1),
+.BR heartbeat_monitor.py (1)
+.SH AUTHOR
+Mu2e DAQ Group, Fermi National Accelerator Laboratory.

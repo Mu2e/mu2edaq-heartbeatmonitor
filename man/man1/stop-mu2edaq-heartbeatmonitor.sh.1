@@ -1,0 +1,53 @@
+.TH STOP-MU2EDAQ-HEARTBEATMONITOR.SH 1 "2026-10-06" "mu2edaq-heartbeatmonitor t01.00.00" "Mu2e DAQ Manual"
+.SH NAME
+stop\-mu2edaq\-heartbeatmonitor.sh \- stop the heartbeat monitor daemon
+.SH SYNOPSIS
+.B stop\-mu2edaq\-heartbeatmonitor.sh
+.RI [ pid_file ]
+.SH DESCRIPTION
+Control\-room stop script, run as
+.BR "crs\-app stop heartbeatmonitor" .
+Reads the PID from
+.IR pid_file ,
+sends SIGTERM, waits up to
+.B CRS_STOP_TIMEOUT
+seconds for the process to exit, sends SIGKILL if it has not, and removes the
+PID file.
+A missing PID file, or one naming a process that no longer exists, is reported
+and treated as success.
+.PP
+The script trusts the PID file: it does not check that the PID belongs to
+.BR heartbeat_monitor.py .
+The daemon creates that file with mode 0666.
+If the file is missing while the monitor is still running (see
+.BR start\-mu2edaq\-heartbeatmonitor.sh (1)),
+this script reports "not running"; find the process with
+.B "pgrep \-af heartbeat_monitor.py"
+and kill it by hand.
+.SH OPTIONS
+.TP
+.I pid_file
+Default:
+.I heartbeat_monitor.pid
+in the script's directory.
+.SH ENVIRONMENT
+.TP
+.B CRS_STOP_TIMEOUT
+Seconds to wait after SIGTERM before SIGKILL.
+Default 10.
+.SH EXIT STATUS
+.TP
+.B 0
+Stopped, or not running.
+.SH EXAMPLES
+.RS 4
+.nf
+\&./stop\-mu2edaq\-heartbeatmonitor.sh
+CRS_STOP_TIMEOUT=30 ./stop\-mu2edaq\-heartbeatmonitor.sh
+.fi
+.RE
+.SH SEE ALSO
+.BR start\-mu2edaq\-heartbeatmonitor.sh (1),
+.BR heartbeat_monitor.py (1)
+.SH AUTHOR
+Mu2e DAQ Group, Fermi National Accelerator Laboratory.

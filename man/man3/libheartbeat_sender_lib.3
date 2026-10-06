@@ -1,0 +1,139 @@
+.TH LIBHEARTBEAT_SENDER_LIB 3 "2026-10-06" "mu2edaq-heartbeatmonitor t01.00.00" "Mu2e DAQ Manual"
+.SH NAME
+libheartbeat_sender_lib \- C++ heartbeat sender library
+.SH SYNOPSIS
+.nf
+.B #include <heartbeat_sender_lib.h>
+.PP
+.B namespace hbsender {
+.B struct Config {
+.B "    std::string name;"
+.B "    std::string status   = \(dqOK\(dq;"
+.B "    std::string host     = \(dq127.0.0.1\(dq;"
+.B "    int         port     = 9999;"
+.B "    double      interval = 0.0;"
+.B "    int         count    = 0;"
+.B "    std::string iface;"
+.B "    bool        verbose  = false;"
+.B };
+.PP
+.BI "std::string now_iso8601();"
+.BI "std::string build_packet(const std::string& " name ", const std::string& " status );
+.BI "void send_packet(const std::string& " host ", int " port ","
+.BI "                 const std::string& " data ", const std::string& " iface );
+.BI "void load_json_file(const std::string& " path ", Config& " cfg );
+.B }
+.fi
+.PP
+Link with
+.B heartbeat_sender_lib
+(static,
+.IR libheartbeat_sender_lib.a )
+and
+.BR nlohmann_json::nlohmann_json .
+.SH DESCRIPTION
+A small static library for emitting heartbeats understood by
+.BR heartbeat_monitor.py (1).
+It is the core of
+.BR heartbeat_sender (1)
+and can be linked into any C++17 DAQ process that should report liveness.
+.TP
+.B now_iso8601()
+Current UTC time as
+.IR YYYY\-MM\-DDTHH:MM:SS.mmm+00:00 .
+.TP
+.B build_packet()
+Returns the compact JSON object
+.B {\(dqname\(dq:...,\(dqtimestamp\(dq:...,\(dqstatus\(dq:...}
+with
+.I name
+and
+.I status
+JSON\-escaped (short escapes for
+.BR \e\(dq ,
+.BR \e\e ,
+.BR \eb ,
+.BR \ef ,
+.BR \en ,
+.BR \er ,
+.BR \et ;
+other bytes below 0x20 as
+.BR \eu00XX ;
+everything else, including UTF\-8, passed through unchanged).
+.TP
+.B send_packet()
+Sends
+.I data
+as one UDP datagram.
+A
+.BI % iface
+suffix on
+.I host
+is stripped and used as the interface when
+.I iface
+is empty.
+An IPv4 literal is sent with
+.B SO_BROADCAST
+set, or with a multicast TTL of 32 if it is a multicast group.
+An IPv6 literal is sent with a multicast hop limit of 32 and
+.B IPV6_MULTICAST_IF
+for multicast groups; link\-local unicast
+.RI ( fe80::/10 )
+and link\-local multicast
+.RI ( ff02::/16 )
+require an interface.
+Anything else is resolved with
+.BR getaddrinfo (3)
+and sent to the first result.
+.TP
+.B load_json_file()
+Fills the fields of
+.I cfg
+present in the JSON object at
+.IR path .
+.SH RETURN VALUE
+.B send_packet()
+and
+.B load_json_file()
+return nothing and report failure by throwing.
+.SH ERRORS
+.B std::runtime_error
+is thrown for: socket creation failure;
+.BR sendto (2)
+failure on an IP literal; an unknown interface name; a link\-local destination
+without an interface; an unresolvable host name; an unreadable or invalid JSON
+file.
+A
+.BR sendto (2)
+failure on the host\-name path is not detected.
+.BR load_json_file()
+can also throw
+.B nlohmann::json::type_error
+when a key has the wrong JSON type.
+.SH NOTES
+POSIX sockets only; the library does not build on Windows.
+No CMake package configuration is exported; consume it with
+.B add_subdirectory(cpp_sender)
+or by pointing at the installed header and archive.
+Install locations:
+.I include/heartbeat_sender_lib.h
+and
+.IR lib/libheartbeat_sender_lib.a .
+The test suite is
+.I cpp_sender/tests/test_heartbeat_sender_lib.cpp
+(20 GoogleTest cases).
+.SH EXAMPLES
+.nf
+#include <heartbeat_sender_lib.h>
+
+void beat() {
+    std::string p = hbsender::build_packet("daq\-node\-01", "OK");
+    hbsender::send_packet("monitor\-host", 9999, p, "");
+}
+.fi
+.SH SEE ALSO
+.BR heartbeat_sender (1),
+.BR heartbeat_sender.py (1),
+.BR mu2edaq\-heartbeatmonitor\-api (7)
+.SH AUTHOR
+Mu2e DAQ Group, Fermi National Accelerator Laboratory.
