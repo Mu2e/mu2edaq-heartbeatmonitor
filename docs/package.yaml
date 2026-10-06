@@ -1,0 +1,199 @@
+schema: mega-review/1
+package: mu2edaq-heartbeatmonitor
+tier: A
+group: monitoring
+repo:
+  url: git@github.com:Mu2e/mu2edaq-heartbeatmonitor.git
+  exists: true
+  issues_enabled: true
+doc_dir: docs
+summary: >
+  UDP heartbeat liveness tracker that ingests JSON heartbeats on UDP 9999 (IPv4
+  and IPv6), marks each named sender healthy or timed out against a per-system
+  timeout, and serves a dashboard, JSON API and SSE stream on HTTP 8081
+languages: [python, cpp, javascript]
+loc: 2870
+
+runtime:
+  executables:
+    - name: heartbeat_monitor.py
+      kind: daemon
+      man_page: man/man1/heartbeat_monitor.py.1
+    - name: heartbeat_sender.py
+      kind: cli
+      man_page: man/man1/heartbeat_sender.py.1
+    - name: heartbeat_sender
+      kind: cli
+      man_page: man/man1/heartbeat_sender.1
+    - name: heartbeat_sender_lib
+      kind: library
+      man_page: man/man3/libheartbeat_sender_lib.3
+    - name: start-mu2edaq-heartbeatmonitor.sh
+      kind: script
+      man_page: man/man1/start-mu2edaq-heartbeatmonitor.sh.1
+    - name: stop-mu2edaq-heartbeatmonitor.sh
+      kind: script
+      man_page: man/man1/stop-mu2edaq-heartbeatmonitor.sh.1
+    - name: bootstrap_heartbeat_monitor.sh
+      kind: script
+      man_page: man/man1/bootstrap_heartbeat_monitor.sh.1
+  services: []
+  ports:
+    - {port: 9999, proto: udp, role: heartbeat-ingest-ipv4, source: "start-mu2edaq-heartbeatmonitor.sh:17"}
+    - {port: 9999, proto: udp, role: heartbeat-ingest-ipv6, source: "config/heartbeat_config.yaml:11"}
+    - {port: 8081, proto: tcp, role: web-ui, source: "start-mu2edaq-heartbeatmonitor.sh:16"}
+    - {port: 5003, proto: tcp, role: web-ui-config-file-dead-under-start-script, source: "config/heartbeat_config.yaml:5"}
+    - {port: 8080, proto: tcp, role: web-ui-code-default, source: "heartbeat_monitor.py:53"}
+  config_files:
+    - config/heartbeat_config.yaml
+    - example_sender.json
+  env_vars: [CRS_PORT_HTTP, CRS_PORT_UDP, CRS_STOP_TIMEOUT]
+
+interactions:
+  depends_on:
+    - package: mu2edaq-discovery
+      via: import
+      direction: out
+      optional: true
+      evidence: "heartbeat_monitor.py:541"
+  depended_on_by: []
+  external: []
+
+quality:
+  tests: {present: true, framework: gtest, count: 20}
+  ci: {present: false, workflows: []}
+  license: MIT
+  artifacts_clean: true
+
+findings:
+  - id: HBM-001
+    severity: S2
+    type: bug
+    title: "[udp] one well-formed non-object datagram permanently kills a listener thread while HTTP stays up"
+    issue: pending
+    fingerprint: 7e9b0592
+  - id: HBM-002
+    severity: S2
+    type: bug
+    title: "[registry] dead nodes are purged after cleanup_after and /api/health reports ok; configured systems that never report are never shown"
+    issue: pending
+    fingerprint: 4b073934
+  - id: HBM-003
+    severity: S3
+    type: bug
+    title: "[udp] the UDP bind runs inside the listener thread, so a bind failure leaves the monitor up and deaf"
+    issue: pending
+    fingerprint: fc4fb096
+  - id: HBM-004
+    severity: S3
+    type: bug
+    title: "[lifecycle] a second start overwrites and then deletes the PID file, orphaning the running daemon"
+    issue: pending
+    fingerprint: 9e5b5e6e
+  - id: HBM-005
+    severity: S3
+    type: bug
+    title: "[daemon] daemonize() sets umask(0), so the PID file and log are world-writable"
+    issue: pending
+    fingerprint: 1d351035
+  - id: HBM-006
+    severity: S3
+    type: bug
+    title: "[config] three disagreeing HTTP ports (8080 code, 5003 YAML, 8081 start script) and a default config name that does not exist"
+    issue: pending
+    fingerprint: 3edfefe3
+  - id: HBM-007
+    severity: S3
+    type: bug
+    title: "[registry] registry growth is unbounded when no HTTP client is polling"
+    issue: pending
+    fingerprint: 39b50332
+  - id: HBM-008
+    severity: S3
+    type: bug
+    title: "[web] Flask development server on 0.0.0.0 with no authentication; --debug exposes the Werkzeug debugger"
+    issue: pending
+    fingerprint: 43ab272a
+  - id: HBM-009
+    severity: S3
+    type: enhancement
+    title: "[ci] no Python tests and no CI; the 20 gtest cases cover only the C++ sender"
+    issue: pending
+    fingerprint: 581bf4c5
+  - id: HBM-010
+    severity: S4
+    type: bug
+    title: "[registry] liveness ages are computed from the wall clock, not a monotonic clock"
+    issue: pending
+    fingerprint: 88b830df
+  - id: HBM-011
+    severity: S4
+    type: bug
+    title: "[sender] C++ heartbeat_sender aborts on a non-numeric option and ignores sendto errors for hostnames"
+    issue: pending
+    fingerprint: 67c939e6
+  - id: HBM-012
+    severity: S4
+    type: documentation
+    title: "[docs] README, docs/README.md and CLAUDE.md describe a config file, port and defaults that do not exist"
+    issue: pending
+    fingerprint: 7f45bdcb
+  - id: HBM-013
+    severity: S4
+    type: bug
+    title: "[sender] heartbeat_sender.py stops at the first send error in --interval mode, unlike the C++ sender"
+    issue: pending
+    fingerprint: 4d8bfd73
+  - id: HBM-C08
+    severity: S3
+    type: bug
+    title: "comment on existing #8: bootstrap_heartbeat_monitor.sh still not location-independent and still reports success on failure"
+    issue: "https://github.com/Mu2e/mu2edaq-heartbeatmonitor/issues/8"
+    fingerprint: 22ae614c
+
+notes:
+  dedup: >
+    gh issue list (read) returned 4 issues, none with a mega-review fingerprint.
+    #8 (open, bootstrap) is still accurate and gets a comment (HBM-C08), not a
+    new issue. #1 (closed) introduced 8081 via the start script; HBM-006 covers
+    the 8080 code default and the 5003 YAML value it left behind and links #1.
+  wire_format: >
+    Python and C++ senders were run against a capture socket with identical
+    inputs (ASCII, escapes and control bytes, UTF-8). Every case decodes to the
+    same JSON object; bytes differ in separators, non-ASCII escaping, DEL, and
+    timestamp precision (Python microseconds with the fraction dropped at
+    exactly zero, C++ milliseconds). The monitor treats timestamp as opaque, so
+    there is no functional disagreement.
+  dual_stack: >
+    Correct: separate v4 (0.0.0.0) and v6 ([::], IPV6_V6ONLY=1) sockets on the
+    same port; verified by sending to 127.0.0.1 and ::1 against one process.
+  thread_safety: >
+    SystemRegistry is guarded by one Lock; Flask threads only read via
+    snapshot() (which also purges, under the lock). _config theme mutation from
+    request threads is a single dict assignment. No data race found. The real
+    concurrency defects are HBM-001 (listener thread death) and the unbounded
+    per-SSE-client threads noted in HBM-008.
+  contradicted_brief: >
+    The brief and DAQ-ControlRoom-Testing.md:88 say heartbeat_monitor.py takes
+    -c but not --config. The parser accepts both (heartbeat_monitor.py:467) and
+    the start script uses --config. The actual deviation is the default config
+    name config.yaml, which does not exist (HBM-006).
+  loc: >
+    Tracked code: Python 838, C++ 780 (incl. 301 test), HTML/JS templates 1061,
+    shell 84, CMake 107. Markdown, YAML and JSON excluded.
+  untracked: >
+    cpp_sender/build/ (including _deps/ with nlohmann_json and googletest
+    sources) exists on disk but is gitignored and untracked; not a finding.
+  comment_staging: >
+    HBM-C08 is staged in ISSUES-PENDING.md under the heading "Comment to add to
+    existing issue #8" (blockquoted body, fingerprint inside the quote) so that
+    docs/mega-review/tools/stage_issues.py emits it as a comment on #8.
+  completion_pass: >
+    A second agent completed this package from a terminated colleague's draft.
+    It re-ran the 20 gtest cases, re-captured the Python and C++ sender bytes,
+    reproduced HBM-001, HBM-004, HBM-005 on macOS and the SO_REUSEADDR co-bind
+    in an almalinux:9 container, added HBM-013 (sender behavioural
+    divergence), replaced a fictional host name in three man-page examples,
+    and fixed the start page's section order. Fingerprints for HBM-001..012
+    are the draft's; their rule_id slugs were not recorded. HBM-013 is
+    sha1("Mu2e/mu2edaq-heartbeatmonitor:heartbeat_sender.py:sender-loop-aborts-on-error")[:8].
